@@ -97,7 +97,7 @@ print(f"Generating briefing for {date_str}...")
 
 while True:
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model="anthropic/claude-sonnet-4.6",
         max_tokens=8000,
         tools=tools,
         messages=messages,
