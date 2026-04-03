@@ -103,6 +103,9 @@ while True:
         messages=messages,
     )
 
+    print(f"stop_reason: {response.stop_reason}")
+    print(f"content block types: {[b.type for b in response.content]}")
+
     if response.stop_reason == "end_turn":
         break
     elif response.stop_reason == "pause_turn":
