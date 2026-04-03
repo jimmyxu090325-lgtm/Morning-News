@@ -155,6 +155,15 @@ if not briefing_text:
     print("Error: no text content in response.", file=sys.stderr)
     sys.exit(1)
 
+# ── Save as markdown for Obsidian ────────────────────────────────────────────
+obsidian_dir = "Daily Briefing"
+os.makedirs(obsidian_dir, exist_ok=True)
+md_path = os.path.join(obsidian_dir, f"{date_cn}.md")
+with open(md_path, "w", encoding="utf-8") as f:
+    f.write(f"# Morning Financial Briefing — {date_str}\n\n")
+    f.write(briefing_text)
+print(f"Saved to {md_path}")
+
 print(f"Briefing generated ({len(briefing_text)} chars). Sending email...")
 
 # ── Send via Gmail SMTP ───────────────────────────────────────────────────────

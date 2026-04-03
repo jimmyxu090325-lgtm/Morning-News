@@ -25,8 +25,16 @@ jobs:
       - name: Generate and send briefing
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}   # optional: leave empty for default
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
           GMAIL_FROM: ${{ secrets.GMAIL_FROM }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           GMAIL_TO: jimmy.xu88@icloud.com
         run: python scripts/generate_briefing.py
+
+      - name: Save briefing to Obsidian vault
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "Daily Briefing/"
+          git diff --cached --quiet || git commit -m "Add briefing $(date -u +'%Y-%m-%d')"
+          git push
