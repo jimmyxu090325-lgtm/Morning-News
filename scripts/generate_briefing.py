@@ -28,8 +28,11 @@ subject  = f"Morning Financial Briefing — {date_str}"
 
 # ── Anthropic client (supports custom base_url for proxy providers) ───────────
 client_kwargs = {"api_key": os.environ["ANTHROPIC_API_KEY"]}
-base_url = os.environ.get("ANTHROPIC_BASE_URL", "").strip()
+base_url = os.environ.get("ANTHROPIC_BASE_URL", "").strip().rstrip("/")
 if base_url:
+    # SDK appends /v1 itself — strip it if the user included it in the URL
+    if base_url.endswith("/v1"):
+        base_url = base_url[:-3]
     client_kwargs["base_url"] = base_url
 
 client = anthropic.Anthropic(**client_kwargs)
