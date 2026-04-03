@@ -3,16 +3,17 @@ Morning Financial Briefing — daily agent
 Runs at 23:00 UTC (07:00 CST) via GitHub Actions cron.
 
 Secrets required in GitHub repo settings:
-  ANTHROPIC_API_KEY    — your Anthropic (or compatible) API key
-  ANTHROPIC_BASE_URL   — (optional) custom base URL, e.g. for palebluedot proxy
-  GMAIL_FROM           — Gmail address used to send (must own the app password)
-  GMAIL_APP_PASSWORD   — Gmail App Password (not your Google account password)
-  GMAIL_TO             — set in workflow env, defaults to jimmy.xu88@icloud.com
+  ANTHROPIC_API_KEY    — your palebluedot API key
+  ANTHROPIC_BASE_URL   — palebluedot base URL (e.g. https://open.palebluedot.ai/v1)
+  GMAIL_FROM           — Gmail address used to send
+  GMAIL_APP_PASSWORD   — Gmail App Password
+  GMAIL_TO             — recipient (set in workflow env)
 """
 
 import os
 import smtplib
 import sys
+import feedparser
 from datetime import datetime, timezone, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -22,35 +23,87 @@ import anthropic
 # ── Date in CST (UTC+8) ──────────────────────────────────────────────────────
 CST = timezone(timedelta(hours=8))
 today = datetime.now(CST)
-date_str = today.strftime("%B %d, %Y")          # e.g. "April 04, 2026"
-date_cn  = today.strftime("%Y-%m-%d")            # e.g. "2026-04-04"
+date_str = today.strftime("%B %d, %Y")
+date_cn  = today.strftime("%Y-%m-%d")
 subject  = f"Morning Financial Briefing — {date_str}"
 
-# ── Anthropic client (supports custom base_url for proxy providers) ───────────
+# ── Anthropic client ──────────────────────────────────────────────────────────
 client_kwargs = {"api_key": os.environ["ANTHROPIC_API_KEY"]}
 base_url = os.environ.get("ANTHROPIC_BASE_URL", "").strip().rstrip("/")
 if base_url:
-    # SDK appends /v1 itself — strip it if the user included it in the URL
     if base_url.endswith("/v1"):
         base_url = base_url[:-3]
     client_kwargs["base_url"] = base_url
 
 client = anthropic.Anthropic(**client_kwargs)
 
+# ── Fetch RSS feeds ───────────────────────────────────────────────────────────
+def fetch_feed(url, label, max_items=8):
+    try:
+        feed = feedparser.parse(url)
+        if not feed.entries:
+            return ""
+        lines = [f"\n[{label}]"]
+        for entry in feed.entries[:max_items]:
+            title = entry.get("title", "").strip()
+            summary = entry.get("summary", "").strip()
+            # strip HTML tags crudely
+            import re
+            summary = re.sub(r"<[^>]+>", " ", summary)[:250].strip()
+            lines.append(f"• {title}")
+            if summary and summary != title:
+                lines.append(f"  {summary}")
+        return "\n".join(lines)
+    except Exception as e:
+        print(f"Warning: could not fetch {label}: {e}")
+        return ""
+
+print(f"Fetching news for {date_str}...")
+
+feeds = [
+    ("https://finance.yahoo.com/rss/headline?s=NVDA",        "NVDA News"),
+    ("https://finance.yahoo.com/rss/headline?s=AAPL",        "AAPL News"),
+    ("https://finance.yahoo.com/rss/headline?s=AMD,INTC,TSM","AI/Semiconductor News"),
+    ("https://feeds.content.dowjones.io/public/rss/mw_topstories", "MarketWatch"),
+    ("https://feeds.reuters.com/reuters/businessNews",        "Reuters Business"),
+    ("https://feeds.reuters.com/reuters/technologyNews",      "Reuters Tech"),
+    ("https://www.cnbc.com/id/100003114/device/rss/rss.html", "CNBC Markets"),
+    ("https://www.cnbc.com/id/10000664/device/rss/rss.html",  "CNBC Economy"),
+    ("https://feeds.reuters.com/reuters/CNtopNews",           "Reuters China"),
+    ("https://www.scmp.com/rss/92/feed",                      "SCMP Business"),
+    ("https://finance.yahoo.com/rss/headline?s=000100.SZ,601061.SS,002602.SZ", "A-Share Focus Stocks"),
+]
+
+news_context = ""
+for url, label in feeds:
+    news_context += fetch_feed(url, label)
+
+if len(news_context) > 14000:
+    news_context = news_context[:14000] + "\n...[truncated]"
+
+if news_context.strip():
+    print(f"News context fetched: {len(news_context)} chars")
+else:
+    print("Warning: no RSS feeds returned content — Claude will write from training knowledge")
+
 # ── Prompt ────────────────────────────────────────────────────────────────────
 PROMPT = f"""Today is {date_str} (China Standard Time, {date_cn}).
 
-You are a financial analyst writing a daily morning briefing for a sophisticated investor. Search the web for the latest news and market data from the past 24 hours, then write the briefing below.
+You are a financial analyst writing a daily morning briefing for a sophisticated investor.
 
-Write in plain text suitable for email — no markdown symbols like ** or ##. Use ALL CAPS for section headers. Write sections 1-3 in flowing analytical prose. Use numbered or labeled entries for section 4.
+Below is a news feed collected this morning from financial RSS sources. Use it as your primary source, supplemented by your training knowledge, to write a comprehensive narrative briefing.
 
-=== FORMAT ===
+--- NEWS FEED ---
+{news_context if news_context.strip() else "(No live feed available — write from training knowledge and note this.)"}
+--- END NEWS FEED ---
 
+Write the briefing in plain text suitable for email. No markdown symbols like ** or ##. Use ALL CAPS for section headers. Sections 1-3 in flowing analytical prose. Section 4 in labeled entries.
+
+----------------------------------------------------------------------
 MORNING FINANCIAL BRIEFING — {date_str}
+----------------------------------------------------------------------
 
-----------------------------------------------------------------------
 1. US TECH & AI
-----------------------------------------------------------------------
 [Narrative covering NVDA, AAPL, and the broader AI/semiconductor sector. What moved? Why? What are the forward implications? Include earnings, analyst calls, product news, export controls, or macro headwinds/tailwinds. Context and interpretation, not just headlines.]
 
 ----------------------------------------------------------------------
@@ -61,12 +114,12 @@ MORNING FINANCIAL BRIEFING — {date_str}
 ----------------------------------------------------------------------
 3. A-SHARE / CHINA MARKETS
 ----------------------------------------------------------------------
-[Narrative covering policy signals from Beijing (NDRC, PBOC, regulators), market sentiment on CSI 300 / ChiNext, and sector rotation themes. What sectors are seeing inflows or outflows?]
+[Narrative covering policy signals from Beijing (NDRC, PBOC, regulators), market sentiment on CSI 300 / ChiNext, and sector rotation themes.]
 
 ----------------------------------------------------------------------
 4. STOCK SPOTLIGHT
 ----------------------------------------------------------------------
-For each of the 7 focus stocks, give a brief update: recent price action, any news or filings, sector context, and what to watch.
+For each of the 7 focus stocks, give a brief update: recent price action, any news, sector context, and what to watch.
 
   世纪华通 / Century Huatong (002602):
   中信金属 / CITIC Metal (601061):
@@ -79,50 +132,20 @@ For each of the 7 focus stocks, give a brief update: recent price action, any ne
 ----------------------------------------------------------------------
 5. KEY THEMES TO WATCH TODAY
 ----------------------------------------------------------------------
-[4-5 bullet points summarizing the most important themes, risks, or catalysts to monitor during today's trading session.]
+4-5 bullet points summarizing the most important themes, risks, or catalysts to monitor during today's trading session.
 
-=== END FORMAT ===
-
-Be direct and analytical. Every sentence should add information or interpretation. Avoid filler phrases and generic commentary.
+Be direct and analytical. Every sentence should add information or interpretation.
 """
 
-# ── Run Claude with web search (handles pause_turn continuations) ─────────────
-tools = [{"type": "web_search_20260209", "name": "web_search"}]
-messages = [{"role": "user", "content": PROMPT}]
-MAX_CONTINUATIONS = 5
-continuation = 0
-response = None
+# ── Call Claude (no tool use) ─────────────────────────────────────────────────
+print("Generating briefing...")
 
-print(f"Generating briefing for {date_str}...")
+response = client.messages.create(
+    model="anthropic/claude-sonnet-4.6",
+    max_tokens=8000,
+    messages=[{"role": "user", "content": PROMPT}],
+)
 
-while True:
-    response = client.messages.create(
-        model="anthropic/claude-sonnet-4.6",
-        max_tokens=8000,
-        tools=tools,
-        messages=messages,
-    )
-
-    print(f"stop_reason: {response.stop_reason}")
-    print(f"content block types: {[b.type for b in response.content]}")
-
-    if response.stop_reason == "end_turn":
-        break
-    elif response.stop_reason == "pause_turn":
-        if continuation >= MAX_CONTINUATIONS:
-            print("Warning: reached max continuations, using partial response.")
-            break
-        continuation += 1
-        print(f"Continuing (iteration {continuation})...")
-        messages = [
-            {"role": "user", "content": PROMPT},
-            {"role": "assistant", "content": response.content},
-        ]
-    else:
-        # tool_use or unexpected — shouldn't occur with server-side tools
-        break
-
-# Extract final text blocks
 briefing_text = "\n".join(
     block.text for block in response.content
     if hasattr(block, "type") and block.type == "text"
@@ -149,4 +172,4 @@ with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
     server.login(gmail_from, gmail_password)
     server.sendmail(gmail_from, gmail_to, msg.as_string())
 
-print(f"Done. Briefing sent to {gmail_to} with subject: {subject}")
+print(f"Done. Sent to {gmail_to}: {subject}")
