@@ -1,0 +1,41 @@
+name: A-Share Daily Stock Research
+
+on:
+  schedule:
+    - cron: '0 23 * * *'   # 07:00 CST daily — 每日简报
+    - cron: '0 13 * * 5'   # 21:00 CST Friday — 周度总结
+  workflow_dispatch:         # manual run for testing
+
+jobs:
+  stock-brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install anthropic feedparser requests beautifulsoup4
+
+      - name: Generate and send stock brief
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          GMAIL_FROM: ${{ secrets.GMAIL_FROM }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_TO: jimmy.xu88@icloud.com
+        run: python scripts/generate_stock_brief.py
+
+      - name: Save to Obsidian vault
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "Stock Research/"
+          git diff --cached --quiet || git commit -m "Add stock brief $(date -u +'%Y-%m-%d')"
+          git push
