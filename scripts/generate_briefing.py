@@ -89,52 +89,95 @@ else:
 # ── Prompt ────────────────────────────────────────────────────────────────────
 PROMPT = f"""Today is {date_str} (China Standard Time, {date_cn}).
 
-You are a financial analyst writing a daily morning briefing for a sophisticated investor.
+You are a senior financial analyst writing a daily morning briefing for a sophisticated China A-share investor focused on precious metals, technology, and energy sectors.
 
-Below is a news feed collected this morning from financial RSS sources. Use it as your primary source, supplemented by your training knowledge, to write a comprehensive narrative briefing.
+OBJECTIVE: Help the investor quickly understand what changed, what matters, and how to position.
+
+Below is a news feed collected this morning from financial RSS sources. Use it as your primary source, supplemented by your training knowledge.
 
 --- NEWS FEED ---
 {news_context if news_context.strip() else "(No live feed available — write from training knowledge and note this.)"}
 --- END NEWS FEED ---
 
-Write the briefing in plain text suitable for email. No markdown symbols like ** or ##. Use ALL CAPS for section headers. Sections 1-3 in flowing analytical prose. Section 4 in labeled entries.
+CRITICAL RULES:
+- Only include high-impact news that changes expectations or positioning vs yesterday
+- Exclude low-impact company news, repetitive narratives, non-actionable content
+- Prioritize Bloomberg, FT, Reuters, WSJ sources
+- If it does not change positioning, DO NOT include it
+- English primary, Chinese summaries only where specified
+- Bullet points and clean spacing — no long paragraphs
+- Target reading time: under 5 minutes
 
-----------------------------------------------------------------------
-MORNING FINANCIAL BRIEFING — {date_str}
-----------------------------------------------------------------------
+Output EXACTLY this structure:
 
-1. US TECH & AI
-[Narrative covering NVDA, AAPL, and the broader AI/semiconductor sector. What moved? Why? What are the forward implications? Include earnings, analyst calls, product news, export controls, or macro headwinds/tailwinds. Context and interpretation, not just headlines.]
+---
+Morning Financial Briefing — {date_str}
+---
 
-----------------------------------------------------------------------
-2. GLOBAL MACRO
-----------------------------------------------------------------------
-[Narrative covering Fed and PBOC policy signals, US Treasury yields (2Y, 10Y), USD index (DXY), and key commodities (oil, gold, copper). What is the macro narrative — risk-on or risk-off? What is the market pricing in?]
+## Top Global News (Ranked)
 
-----------------------------------------------------------------------
-3. A-SHARE / CHINA MARKETS
-----------------------------------------------------------------------
-[Narrative covering policy signals from Beijing (NDRC, PBOC, regulators), market sentiment on CSI 300 / ChiNext, and sector rotation themes.]
+[5–7 items MAX, ranked by market impact. For each:]
 
-----------------------------------------------------------------------
-4. STOCK SPOTLIGHT
-----------------------------------------------------------------------
-For each of the 7 focus stocks, give a brief update: recent price action, any news, sector context, and what to watch.
+**[Headline in English]**
+Source: [Bloomberg / FT / Reuters / WSJ]
+Impact: High / Medium / Low
 
-  世纪华通 / Century Huatong (002602):
-  中信金属 / CITIC Metal (601061):
-  五矿新能 / Minmetals New Energy (002628):
-  恒邦股份 / Hengbang Co. (002237):
-  雅克科技 / Yake Technology (002409):
-  三峡能源 / Three Gorges Energy (600905):
-  中国电建 / PowerChina (601669):
+- What's NEW (vs yesterday): [1 line]
+- Key Points: [2 bullets max]
+- 中文总结：[1句话，提炼影响]
 
-----------------------------------------------------------------------
-5. KEY THEMES TO WATCH TODAY
-----------------------------------------------------------------------
-4-5 bullet points summarizing the most important themes, risks, or catalysts to monitor during today's trading session.
+---
 
-Be direct and analytical. Every sentence should add information or interpretation.
+## Macro Regime & Positioning
+
+Market Regime (1 line): [e.g. "Stagflation risk rising / Growth slowdown with sticky inflation"]
+
+Key Drivers:
+- [3–5 bullets, English]
+
+Positioning Implication:
+- Risk-on or Risk-off? [answer]
+- Rates direction bias? [answer]
+- Commodities vs Tech preference? [answer]
+
+中文总结：[2–3句话]
+
+---
+
+## A-Share Impact Mapping
+
+### 1. Precious Metals (Gold, Silver)
+- Global Driver: [English]
+- What Changed vs Yesterday: [English]
+- A-share Implication: [English]
+- Positioning Bias: [Overweight / Neutral / Underweight]
+- 中文总结：[1–2句话]
+
+### 2. Technology (AI, Semiconductors)
+- Global Driver: [English]
+- What Changed vs Yesterday: [English]
+- A-share Implication: [English]
+- Positioning Bias: [Overweight / Neutral / Underweight]
+- 中文总结：[1–2句话]
+
+### 3. Energy (Oil, Renewables)
+- Global Driver: [English]
+- What Changed vs Yesterday: [English]
+- A-share Implication: [English]
+- Positioning Bias: [Overweight / Neutral / Underweight]
+- 中文总结：[1–2句话]
+
+---
+
+## Key Signals to Watch (Next 24–48h)
+
+- [3–5 bullets, potential market movers only]
+
+---
+
+## Today's Actionable Takeaways
+
+- [3–5 bullets, clear and decisive, e.g. "Stay defensive; favor gold over growth"]
 """
 
 # ── Call Claude (no tool use) ─────────────────────────────────────────────────
