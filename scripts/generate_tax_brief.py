@@ -165,6 +165,11 @@ SOURCES = [
     # ── Tier 3: 国际 / CRS ───────────────────────────────────────────────────
     ("https://www.oecd.org/tax/automatic-exchange/news.xml",
      "OECD·CRS/BEPS",             "rss"),
+    # ── 税递网（全国税务栏目）────────────────────────────────────────────────
+    ("https://www.taxdy.cn/h-nr--0_544_95.html",
+     "税递网·全国税务",           "html"),
+    ("https://www.taxdy.cn/h-nr--0_544_673.html",
+     "税递网·全球税递",           "html"),
     # ── 专业媒体 ──────────────────────────────────────────────────────────────
     ("https://www.chinatax.gov.cn/rss/chinataxrss.xml",
      "国家税务总局·RSS",          "rss"),
