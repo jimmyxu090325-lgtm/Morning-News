@@ -167,6 +167,22 @@ SOURCES = [
     # 证券日报
     ("https://www.zqrb.cn/stock/",
      "证券日报·股票",        "html"),
+    # ── 美股 & 期货夜盘 ───────────────────────────────────────────────────────
+    # Yahoo Finance RSS — 科技股（NVDA/AAPL/AMD + 纳指）
+    ("https://finance.yahoo.com/rss/headline?s=^IXIC,^GSPC,NVDA,AAPL,AMD,TSM",
+     "Yahoo Finance·美股科技",  "rss"),
+    # Yahoo Finance RSS — 黄金 / 原油期货
+    ("https://finance.yahoo.com/rss/headline?s=GC=F,CL=F,SI=F",
+     "Yahoo Finance·贵金属/原油", "rss"),
+    # MarketWatch — 美股要闻
+    ("https://feeds.content.dowjones.io/public/rss/mw_topstories",
+     "MarketWatch·美股要闻",    "rss"),
+    # Reuters — 商品与能源
+    ("https://feeds.reuters.com/reuters/businessNews",
+     "Reuters·商业",            "rss"),
+    # 东方财富 — 期货频道（A股夜盘）
+    ("https://futures.eastmoney.com/",
+     "东方财富·期货",           "html"),
 ]
 
 news_context = ""
@@ -176,8 +192,8 @@ for url, label, kind in SOURCES:
     else:
         news_context += fetch_html(url, label)
 
-if len(news_context) > 18000:
-    news_context = news_context[:18000] + "\n...[内容截断]"
+if len(news_context) > 22000:
+    news_context = news_context[:22000] + "\n...[内容截断]"
 
 if news_context.strip():
     print(f"数据已抓取：{len(news_context)} 字符")
@@ -235,6 +251,29 @@ A股每日研究简报 — {date_cn}
 
 ---
 
+### 🌙 美股夜盘 & 期货夜盘 → A股影响
+
+**美股收盘情况**
+- 纳斯达克 / 标普500：涨跌幅及主要驱动
+- 相关科技股（NVDA / AAPL / AMD / TSM）：涨跌情况
+- 市场情绪：风险偏好 偏强 / 中性 / 偏弱
+
+**期货夜盘**
+- 黄金期货（COMEX / 沪金）：
+- 原油期货（WTI / 布伦特）：
+- 其他相关期货（铜、白银等）：
+
+**对追踪行业的传导分析**
+
+| 行业 | 受影响方向 | 主要逻辑 |
+|------|-----------|---------|
+| 科技 | 利好/利空/中性 | |
+| 能源·新能源·光伏 | 利好/利空/中性 | |
+| 贵金属 | 利好/利空/中性 | |
+| 游戏 | 利好/利空/中性 | |
+
+---
+
 ### 🚨 重大消息提醒
 
 （仅在有真正重大事件时才写此节，例如：监管处罚、重组、业绩预警、重要政策冲击等）
@@ -275,7 +314,12 @@ A股研究周报 — 本周（截至 {date_cn}）
 
 - A股整体走势（涨跌幅、成交量变化）：
 - 主要驱动因素：
-- 外部环境影响（美联储/汇率/大宗商品）：
+
+**本周美股 & 大宗商品表现**
+- 纳斯达克 / 标普500本周涨跌：
+- 黄金本周走势：
+- 原油本周走势：
+- 对A股的整体影响：偏正面 / 中性 / 偏负面
 
 ---
 
