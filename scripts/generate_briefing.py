@@ -47,10 +47,13 @@ def fetch_feed(url, label, max_items=8):
         for entry in feed.entries[:max_items]:
             title = entry.get("title", "").strip()
             summary = entry.get("summary", "").strip()
+            link = entry.get("link", "").strip()
             # strip HTML tags crudely
             import re
             summary = re.sub(r"<[^>]+>", " ", summary)[:250].strip()
             lines.append(f"• {title}")
+            if link:
+                lines.append(f"  URL: {link}")
             if summary and summary != title:
                 lines.append(f"  {summary}")
         return "\n".join(lines)
@@ -120,6 +123,7 @@ Morning Financial Briefing — {date_str}
 
 **[Headline in English]**
 Source: [Bloomberg / FT / Reuters / WSJ]
+Link: [use the URL from the news feed for this article; if not available write "N/A"]
 Impact: High / Medium / Low
 
 - What's NEW (vs yesterday): [1 line]
