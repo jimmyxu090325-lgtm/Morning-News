@@ -63,14 +63,21 @@ def fetch_feed(url, label, max_items=8):
 print(f"Fetching tax news for {date_cn}...")
 
 feeds = [
-    ("https://feeds.reuters.com/reuters/CNtopNews",          "Reuters 中国"),
-    ("https://feeds.reuters.com/reuters/businessNews",        "Reuters 商业"),
-    ("https://www.scmp.com/rss/92/feed",                      "南华早报 商业"),
-    ("https://feeds.reuters.com/reuters/companyNews",         "Reuters 公司动态"),
-    ("https://finance.yahoo.com/rss/headline?s=tax+china",   "Yahoo 中国税务"),
-    ("https://www.oecd.org/tax/automatic-exchange/news.xml", "OECD 税务"),
-    ("https://feeds.content.dowjones.io/public/rss/mw_topstories", "MarketWatch"),
-    ("https://www.chinatax.gov.cn/rss/chinataxrss.xml",      "国家税务总局"),
+    # 中国大陆官方税务 / 财政来源
+    ("https://www.chinatax.gov.cn/rss/chinataxrss.xml",                  "国家税务总局"),
+    ("http://www.mof.gov.cn/rss/rss_mof.xml",                            "财政部"),
+    ("http://www.mof.gov.cn/zhengwuxinxi/zhengcefabu/rss_zcfb.xml",      "财政部政策发布"),
+    # 中国税务报 / 税务专业媒体
+    ("http://www.ctaxnews.com.cn/rss/index.xml",                          "中国税务报"),
+    ("https://www.shui5.cn/rss.xml",                                      "税屋"),
+    # 最高人民检察院 / 法院（执法案例）
+    ("https://www.spp.gov.cn/spp/rss/index.xml",                          "最高人民检察院"),
+    # 国家市场监督管理总局（反垄断 / 处罚公告）
+    ("http://www.samr.gov.cn/rss/samr.xml",                               "市场监管总局"),
+    # Reuters 中国大陆财经（排除港台）
+    ("https://feeds.reuters.com/reuters/CNtopNews",                       "Reuters 中国大陆"),
+    # OECD CRS 国际动态
+    ("https://www.oecd.org/tax/automatic-exchange/news.xml",              "OECD 税务"),
 ]
 
 news_context = ""
@@ -102,6 +109,8 @@ PROMPT = f"""今天是 {date_cn}（中国标准时间）。
 - 只纳入对监管方向、执法趋势或客户风险有意义的内容
 - 对每条资讯，尽量附上原文链接（使用新闻源中提供的 URL）
 - 若信息不构成实质性信号，不要纳入
+- **地域范围严格限定为中国大陆（不包括香港、澳门、台湾）**；港澳台相关内容一律排除
+- 执法案例优先引用：税务局行政处罚决定书、税务公告、裁判文书网判决、检察院公告；其次才是媒体报道
 
 请严格按照以下格式输出：
 
@@ -127,7 +136,7 @@ PROMPT = f"""今天是 {date_cn}（中国标准时间）。
 
 ### 🚨 重大税务执法案例（最重要）
 
-（每条格式如下，共 2–4 条；若当日无新案例，注明"今日暂无重大执法公告"）
+（每条格式如下，共 2–4 条；信息来源优先级：① 税务局行政处罚决定书/公告 ② 裁判文书网判决 ③ 最高检/法院通报 ④ 媒体报道；若当日无新案例，注明"今日暂无重大执法公告"）
 
 **[公司名称 + 事件]**
 来源：[公告 / 交易所 / 媒体]
