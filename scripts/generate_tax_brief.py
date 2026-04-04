@@ -15,6 +15,9 @@ import re
 import smtplib
 import sys
 import feedparser
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse, urljoin
 from datetime import datetime, timezone, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -38,18 +41,91 @@ if base_url:
 
 client = anthropic.Anthropic(**client_kwargs)
 
-# ── Fetch RSS feeds ───────────────────────────────────────────────────────────
-def fetch_feed(url, label, max_items=8):
+# ── Browser-like headers ──────────────────────────────────────────────────────
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+}
+
+# ── HTML listing page scraper ─────────────────────────────────────────────────
+def fetch_html(url, label, max_items=8):
+    """Scrape an HTML listing page and extract article titles + links."""
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=15)
+        resp.raise_for_status()
+        resp.encoding = resp.apparent_encoding or "utf-8"
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        # Remove non-content elements
+        for tag in soup(["nav", "footer", "script", "style", "header",
+                         "aside", "form", "button"]):
+            tag.decompose()
+
+        base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
+        seen_titles, items = set(), []
+
+        for a in soup.find_all("a", href=True):
+            title = a.get_text(" ", strip=True)
+            href  = a["href"].strip()
+
+            # Basic quality filters
+            if len(title) < 8:
+                continue
+            if title in seen_titles:
+                continue
+            if any(x in href for x in ["javascript:", "mailto:", "#", "void("]):
+                continue
+
+            # Make absolute URL
+            href = urljoin(base, href) if not href.startswith("http") else href
+
+            # Skip links pointing to external unrelated domains
+            link_domain = urlparse(href).netloc
+            base_domain = urlparse(url).netloc
+            if link_domain and link_domain != base_domain:
+                # Allow if same root domain (e.g. sub.chinatax.gov.cn)
+                root = lambda d: ".".join(d.split(".")[-2:])
+                if root(link_domain) != root(base_domain):
+                    continue
+
+            seen_titles.add(title)
+            items.append((title, href))
+            if len(items) >= max_items:
+                break
+
+        if not items:
+            print(f"  [{label}] 未找到文章链接")
+            return ""
+
+        lines = [f"\n[{label}]"]
+        for title, href in items:
+            lines.append(f"• {title}")
+            lines.append(f"  URL: {href}")
+        return "\n".join(lines)
+
+    except Exception as e:
+        print(f"Warning: could not fetch {label} ({url}): {e}")
+        return ""
+
+
+# ── RSS feed fetcher (kept for OECD) ─────────────────────────────────────────
+def fetch_rss(url, label, max_items=6):
     try:
         feed = feedparser.parse(url)
         if not feed.entries:
             return ""
         lines = [f"\n[{label}]"]
         for entry in feed.entries[:max_items]:
-            title = entry.get("title", "").strip()
-            summary = entry.get("summary", "").strip()
-            link = entry.get("link", "").strip()
-            summary = re.sub(r"<[^>]+>", " ", summary)[:300].strip()
+            title   = entry.get("title", "").strip()
+            link    = entry.get("link", "").strip()
+            summary = re.sub(r"<[^>]+>", " ", entry.get("summary", ""))[:250].strip()
             lines.append(f"• {title}")
             if link:
                 lines.append(f"  URL: {link}")
@@ -57,40 +133,57 @@ def fetch_feed(url, label, max_items=8):
                 lines.append(f"  {summary}")
         return "\n".join(lines)
     except Exception as e:
-        print(f"Warning: could not fetch {label}: {e}")
+        print(f"Warning: could not fetch RSS {label}: {e}")
         return ""
 
+
+# ── Source list ───────────────────────────────────────────────────────────────
 print(f"Fetching tax news for {date_cn}...")
 
-feeds = [
-    # 中国大陆官方税务 / 财政来源
-    ("https://www.chinatax.gov.cn/rss/chinataxrss.xml",                  "国家税务总局"),
-    ("http://www.mof.gov.cn/rss/rss_mof.xml",                            "财政部"),
-    ("http://www.mof.gov.cn/zhengwuxinxi/zhengcefabu/rss_zcfb.xml",      "财政部政策发布"),
-    # 中国税务报 / 税务专业媒体
-    ("http://www.ctaxnews.com.cn/rss/index.xml",                          "中国税务报"),
-    ("https://www.shui5.cn/rss.xml",                                      "税屋"),
-    # 最高人民检察院 / 法院（执法案例）
-    ("https://www.spp.gov.cn/spp/rss/index.xml",                          "最高人民检察院"),
-    # 国家市场监督管理总局（反垄断 / 处罚公告）
-    ("http://www.samr.gov.cn/rss/samr.xml",                               "市场监管总局"),
-    # Reuters 中国大陆财经（排除港台）
-    ("https://feeds.reuters.com/reuters/CNtopNews",                       "Reuters 中国大陆"),
-    # OECD CRS 国际动态
-    ("https://www.oecd.org/tax/automatic-exchange/news.xml",              "OECD 税务"),
+# (url, label, type)  type = "html" | "rss"
+SOURCES = [
+    # ── Tier 1: 官方权威来源 ──────────────────────────────────────────────────
+    ("https://www.chinatax.gov.cn/chinatax/n810341/n810825/index.html",
+     "国家税务总局·最新动态",     "html"),
+    ("https://fgk.chinatax.gov.cn/zcfgk/c100016/index.html",
+     "国家税务总局·政策法规库",   "html"),
+    ("https://www.mof.gov.cn/zhengwuxinxi/zhengcefabu/",
+     "财政部·政策发布",           "html"),
+    ("https://szs.mof.gov.cn/zhengcefabu/",
+     "财政部税政司·政策发布",     "html"),
+    ("http://www.customs.gov.cn/customs/302249/302266/index.html",
+     "海关总署·公告",             "html"),
+    # ── Tier 2: 四大会计师事务所 ──────────────────────────────────────────────
+    ("https://kpmg.com/cn/en/services/tax/china-tax-insights/china-tax-alert.html",
+     "毕马威·China Tax Alert",    "html"),
+    ("https://www.pwccn.com/en/services/tax/publications/taxlibrary-chinatax.html",
+     "普华永道·China Tax News",   "html"),
+    ("https://www.deloitte.com/cn/en/services/tax/perspectives/tax-newsflash.html",
+     "德勤·Tax Newsflash",        "html"),
+    ("https://www.ey.com/en_cn/tax/tax-alerts",
+     "安永·China Tax Alerts",     "html"),
+    # ── Tier 3: 国际 / CRS ───────────────────────────────────────────────────
+    ("https://www.oecd.org/tax/automatic-exchange/news.xml",
+     "OECD·CRS/BEPS",             "rss"),
+    # ── 专业媒体 ──────────────────────────────────────────────────────────────
+    ("https://www.chinatax.gov.cn/rss/chinataxrss.xml",
+     "国家税务总局·RSS",          "rss"),
 ]
 
 news_context = ""
-for url, label in feeds:
-    news_context += fetch_feed(url, label)
+for url, label, kind in SOURCES:
+    if kind == "rss":
+        news_context += fetch_rss(url, label)
+    else:
+        news_context += fetch_html(url, label)
 
-if len(news_context) > 14000:
-    news_context = news_context[:14000] + "\n...[内容截断]"
+if len(news_context) > 18000:
+    news_context = news_context[:18000] + "\n...[内容截断]"
 
 if news_context.strip():
     print(f"新闻内容已抓取：{len(news_context)} 字符")
 else:
-    print("警告：RSS 未返回内容，将基于训练知识生成")
+    print("警告：未获取到任何内容，将基于训练知识生成")
 
 # ── Prompt ────────────────────────────────────────────────────────────────────
 PROMPT = f"""今天是 {date_cn}（中国标准时间）。

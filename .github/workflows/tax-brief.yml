@@ -20,7 +20,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install anthropic feedparser
+        run: pip install anthropic feedparser requests beautifulsoup4
 
       - name: Generate and send tax briefing
         env:
