@@ -1,9 +1,13 @@
 name: A-Share Daily Stock Research
 
+concurrency:
+  group: morning-news-publish
+  cancel-in-progress: false
+
 on:
   schedule:
-    - cron: '50 22 * * *'  # 22:50 UTC = 06:50 CST — 每日简报
-    - cron: '0 13 * * 5'   # 21:00 CST Friday — 周度总结
+    - cron: '58 22 * * *'  # 22:58 UTC = 06:58 CST — 每日简报
+    - cron: '10 13 * * 5'  # 21:10 CST Friday — 周度总结
   workflow_dispatch:         # manual run for testing
 
 jobs:
@@ -36,6 +40,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
           git add "Stock Research/" "动态跟踪待更新/"
           git diff --cached --quiet || git commit -m "Add stock brief $(date -u +'%Y-%m-%d')"
           git push
