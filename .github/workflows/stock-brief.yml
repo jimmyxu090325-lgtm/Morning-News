@@ -36,6 +36,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "Stock Research/"
+          git add "Stock Research/" "动态跟踪待更新/"
           git diff --cached --quiet || git commit -m "Add stock brief $(date -u +'%Y-%m-%d')"
           git push
