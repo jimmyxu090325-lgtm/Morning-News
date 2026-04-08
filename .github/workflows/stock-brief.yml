@@ -2,7 +2,7 @@ name: A-Share Daily Stock Research
 
 on:
   schedule:
-    - cron: '0 23 * * *'   # 07:00 CST daily — 每日简报
+    - cron: '50 22 * * *'  # 22:50 UTC = 06:50 CST — 每日简报
     - cron: '0 13 * * 5'   # 21:00 CST Friday — 周度总结
   workflow_dispatch:         # manual run for testing
 

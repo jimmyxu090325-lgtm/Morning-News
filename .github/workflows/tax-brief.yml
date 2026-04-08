@@ -2,7 +2,7 @@ name: China Tax Intelligence Brief
 
 on:
   schedule:
-    - cron: '0 23 * * *'   # 23:00 UTC = 07:00 CST (UTC+8)
+    - cron: '50 22 * * *'  # 22:50 UTC = 06:50 CST (UTC+8)
   workflow_dispatch:         # allow manual run for testing
 
 jobs:
